@@ -1,0 +1,13 @@
+---
+- name: Example playbook to install firewalld
+  hosts: prod
+  remote_user: root
+  become: yes
+  gather_facts: no
+  vars:
+    state: present
+  tasks:
+    - name: ensure firewalld is at the latest version
+      apt:
+        name: firewalld
+        update_cache: yes       # refresh the package index before installing

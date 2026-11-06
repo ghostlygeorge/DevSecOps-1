@@ -1,0 +1,9 @@
+rules:
+  - id: possible-command-injection
+    patterns:
+      - pattern: os.system(...)
+      - pattern-not: os.system("...")     # ignore hardcoded string literals (no user input)
+    message: Possible Command Injection
+    languages:
+      - python
+    severity: WARNING

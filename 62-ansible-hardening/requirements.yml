@@ -1,0 +1,4 @@
+# ansible-galaxy install -r requirements.yml   (pin versions for reproducible hardening)
+roles:
+  - name: dev-sec.os-hardening
+  - name: secfigo.terraform

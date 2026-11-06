@@ -1,0 +1,9 @@
+[
+  { "component": "lodash",        "version": "1.0.1",   "justification": "False Positive" },
+  { "component": "dojo",          "version": "1.4.2",   "justification": "False Positive" },
+  { "component": "lodash",        "version": "4.17.10", "justification": "False Positive" },
+  { "component": "underscore.js", "version": "1.8.3",   "justification": "False Positive" },
+  { "component": "lodash",        "version": "2.4.2",   "justification": "False Positive" },
+  { "component": "handlebars",    "version": "4.0.5",   "justification": "False Positive" },
+  { "component": "tinyMCE",       "version": "4.0.26",  "justification": "False Positive" }
+]

@@ -1,0 +1,9 @@
+# .talismanrc at the repo root — tell Talisman a flagged file is intentional.
+# The checksum pins the exact content: if the file changes, it's flagged again.
+# Get the checksum with:  talisman --checksum id_rsa
+fileignoreconfig:
+- filename: id_rsa
+  checksum: 416122aefc170aef929dbbd1e01626e9066d36f7cfd83c00e38d38b5b03a7c69
+# ignore a detector for a file instead of the whole file:
+# - filename: test/fixtures/fake.pem
+#   ignore_detectors: [filecontent]

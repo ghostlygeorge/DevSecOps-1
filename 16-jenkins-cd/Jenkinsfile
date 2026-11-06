@@ -1,0 +1,98 @@
+#!/usr/bin/env groovy
+// CI + release (build/push to GitLab registry) + SSH deploy to prod.
+// Jenkins credentials required:
+//   registry-auth : Username/password  root / pdso-training
+//   ssh-prod      : SSH Username with private key  (root + prod's /root/.ssh/id_rsa)
+// Plugins: Docker Pipeline, SSH Agent, GitLab.
+pipeline {
+    agent any
+
+    environment {                                   // global: visible to every stage
+        registryUrl   = "gitlab-registry-LABID.lab.practical-devsecops.training"
+        registryCreds = "registry-auth"             // credentials ID
+    }
+
+    options {
+        gitLabConnection('gitlab')
+    }
+
+    stages {
+        stage("build") {
+            agent {
+                docker {
+                    image 'python:3.6'
+                    args '-u root'
+                }
+            }
+            steps {
+                sh """
+                pip3 install --user virtualenv
+                python3 -m virtualenv env
+                . env/bin/activate
+                pip3 install -r requirements.txt
+                python3 manage.py check
+                """
+            }
+        }
+        stage("test") {
+            agent {
+                docker {
+                    image 'python:3.6'
+                    args '-u root'
+                }
+            }
+            steps {
+                sh """
+                pip3 install --user virtualenv
+                python3 -m virtualenv env
+                . env/bin/activate
+                pip3 install -r requirements.txt
+                python3 manage.py test taskManager
+                """
+            }
+        }
+        stage("release") {
+            steps {
+                script {
+                    // tag with the Jenkins build number -> every build is traceable
+                    dockerImage = docker.build registryUrl + "/root/django-nv:$BUILD_NUMBER"
+                    docker.withRegistry('https://' + registryUrl, registryCreds) {
+                        dockerImage.push()
+                    }
+                }
+            }
+        }
+        stage("integration") {
+            steps {
+                catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+                    echo "This is an integration step"
+                    sh "exit 1"
+                }
+            }
+        }
+        stage("prod") {
+            steps {
+                input "Deploy to production?"
+                sshagent(['ssh-prod']) {
+                    // $registryUrl / $BUILD_NUMBER are Groovy-interpolated BEFORE the shell runs.
+                    // StrictHostKeyChecking=no is lab convenience; pin the host key in real life.
+                    sh """
+                    ssh -o StrictHostKeyChecking=no root@prod-LABID '
+                    docker login -u root -p pdso-training $registryUrl
+                    docker rm -f django.nv
+                    docker pull $registryUrl/root/django-nv:$BUILD_NUMBER
+                    docker run -d --name django.nv -p 8000:8000 $registryUrl/root/django-nv:$BUILD_NUMBER
+                    '
+                    """
+                }
+            }
+        }
+    }
+    post {
+        failure  { updateGitlabCommitStatus(name: "\${env.STAGE_NAME}", state: 'failed') }
+        unstable { updateGitlabCommitStatus(name: "\${env.STAGE_NAME}", state: 'failed') }
+        success  { updateGitlabCommitStatus(name: "\${env.STAGE_NAME}", state: 'success') }
+        aborted  { updateGitlabCommitStatus(name: "\${env.STAGE_NAME}", state: 'canceled') }
+        always   { deleteDir() }
+    }
+}

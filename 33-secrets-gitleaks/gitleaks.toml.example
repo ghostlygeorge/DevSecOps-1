@@ -1,0 +1,14 @@
+# .gitleaks.toml — extend the default rules and allowlist known false positives.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Lab false positives"
+paths = [
+  '''fixtures/users\.json''',        # md5 password hash fixture
+]
+regexes = [
+  '''AKIAIOSFODNN7EXAMPLE''',        # AWS doc example key
+]
+# Or ignore single findings by fingerprint in a .gitleaksignore file:
+#   <commit>:<file>:<rule-id>:<line>

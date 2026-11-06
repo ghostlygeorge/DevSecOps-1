@@ -1,0 +1,21 @@
+stages: [build, test, integration, prod]
+
+build:
+  stage: build
+  script:
+    - echo "This is a build step."
+  rules:
+    - changes:
+        - Dockerfile          # job only exists when Dockerfile changed in this push
+# Editing only .gitlab-ci.yml -> no build job -> (here) no pipeline at all.
+
+# changes + if are ANDed inside one rule:
+build-mr:
+  stage: build
+  script:
+    - echo "Dockerfile changed in an MR"
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      changes:
+        - Dockerfile
+# Security use: run hadolint only when Dockerfile changes, checkov only when *.tf changes.

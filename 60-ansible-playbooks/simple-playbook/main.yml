@@ -1,0 +1,7 @@
+---
+- name: Simple playbook
+  hosts: sandbox
+  remote_user: root
+  gather_facts: no            # skip the setup module: faster; works because no task uses ansible_* facts
+  tasks:
+    - include_tasks: tasks/main.yml    # course: `include:` (deprecated, removed in ansible-core 2.16)

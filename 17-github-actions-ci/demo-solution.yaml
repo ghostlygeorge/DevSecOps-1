@@ -1,0 +1,41 @@
+# Challenge answers:
+#  1) sequential execution with needs:
+#  2) integration allowed to fail -> continue-on-error (≈ allow_failure: true)
+#  3) artifact job that uploads hello.txt
+name: Django
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - run: echo "This is a build step"
+  test:
+    runs-on: ubuntu-22.04
+    needs: build
+    steps:
+      - run: echo "This is a test step"
+  integration:
+    runs-on: ubuntu-22.04
+    needs: test
+    steps:
+      - run: echo "This is an integration step"
+      - run: exit 1
+        continue-on-error: true
+  prod:
+    runs-on: ubuntu-22.04
+    needs: integration
+    steps:
+      - run: echo "This is a deploy step"
+  artifact:
+    runs-on: ubuntu-22.04
+    needs: prod
+    steps:
+      - run: echo "hello" > hello.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hello
+          path: hello.txt

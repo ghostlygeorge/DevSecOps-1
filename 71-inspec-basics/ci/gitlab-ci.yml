@@ -1,0 +1,72 @@
+# The "DevOps team's pipeline" that almost every GitLab exercise starts from.
+# Security jobs are bolted onto this — you are NOT expected to understand or
+# change build/test; you only add jobs and stages around them.
+image: docker:20.10             # default image for every job (has the docker CLI)
+
+services:
+  - docker:dind                 # docker daemon side-car so `docker run` works inside jobs
+
+stages:
+  - build
+  - test
+  - release
+  - preprod
+  - integration
+  - prod
+
+build:
+  stage: build
+  image: python:3.6
+  before_script:
+    - pip3 install --upgrade virtualenv
+  script:
+    - virtualenv env                    # create a virtualenv for the app
+    - source env/bin/activate           # activate it
+    - pip install -r requirements.txt   # install third-party packages
+    - python manage.py check            # sanity check the Django app
+
+test:
+  stage: test
+  image: python:3.6
+  before_script:
+    - pip3 install --upgrade virtualenv
+  script:
+    - virtualenv env
+    - source env/bin/activate
+    - pip install -r requirements.txt
+    - python manage.py test taskManager
+
+integration:
+  stage: integration
+  script:
+    - echo "This is an integration step"
+    - exit 1
+  allow_failure: true           # even if the job fails, continue to the next stages
+
+prod:
+  stage: prod
+  script:
+    - echo "This is a deploy step."
+  when: manual                  # Continuous Delivery (human clicks "play")
+
+# Variables: DEPLOYMENT_SERVER = prod-LABID ; DEPLOYMENT_SERVER_SSH_PRIVKEY = prod's /root/.ssh/id_rsa
+inspec:
+  stage: prod
+  only:
+    - main
+  environment: production
+  before_script:
+    - apk add --no-cache openssh-client     # docker:20.10 is Alpine without ssh-agent/ssh-keyscan (course omits this)
+    - mkdir -p ~/.ssh
+    - echo "$DEPLOYMENT_SERVER_SSH_PRIVKEY" | tr -d '\r' > ~/.ssh/id_rsa
+    - chmod 600 ~/.ssh/id_rsa
+    - eval "$(ssh-agent -s)"
+    - ssh-add ~/.ssh/id_rsa
+    - ssh-keyscan -t rsa $DEPLOYMENT_SERVER >> ~/.ssh/known_hosts
+  script:
+    # hysnsec/inspec REQUIRES /share as the output mount (custom image)
+    - docker run --rm -v ~/.ssh:/root/.ssh -v $(pwd):/share hysnsec/inspec exec https://github.com/dev-sec/linux-baseline.git -t ssh://root@$DEPLOYMENT_SERVER -i ~/.ssh/id_rsa --chef-license accept --reporter json:/share/inspec-output.json
+  artifacts:
+    paths: [inspec-output.json]
+    when: always
+  allow_failure: true                       # exit 100 = at least one control failed

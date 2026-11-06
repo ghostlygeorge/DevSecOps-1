@@ -1,0 +1,18 @@
+id: my-custom-workflow
+
+info:
+  name: Django workflow
+  author: pdso
+
+workflows:
+  - template: http/technologies/tech-detect.yaml       # root template
+    matchers:
+      - name: nginx                                     # if tech-detect's "nginx" matcher fires...
+        subtemplates:                                   # ...run only these Django-relevant checks
+          - template: http/exposed-panels/django-admin-panel.yaml
+          - template: http/misconfiguration/django-debug-detect.yaml
+          - template: http/technologies/default-django-page.yaml
+          - template: http/exposures/files/django-secret-key.yaml
+          - template: http/exposures/configs/django-variables-exposed.yaml
+          - template: http/exposures/logs/django-debug-exposure.yaml
+          - template: file/logs/django-framework-exceptions.yaml

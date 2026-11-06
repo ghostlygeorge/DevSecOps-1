@@ -1,0 +1,61 @@
+# The "DevOps team's pipeline" that almost every GitLab exercise starts from.
+# Security jobs are bolted onto this — you are NOT expected to understand or
+# change build/test; you only add jobs and stages around them.
+image: docker:20.10             # default image for every job (has the docker CLI)
+
+services:
+  - docker:dind                 # docker daemon side-car so `docker run` works inside jobs
+
+stages:
+  - build
+  - test
+  - release
+  - preprod
+  - integration
+  - prod
+
+build:
+  stage: build
+  image: python:3.6
+  before_script:
+    - pip3 install --upgrade virtualenv
+  script:
+    - virtualenv env                    # create a virtualenv for the app
+    - source env/bin/activate           # activate it
+    - pip install -r requirements.txt   # install third-party packages
+    - python manage.py check            # sanity check the Django app
+
+test:
+  stage: test
+  image: python:3.6
+  before_script:
+    - pip3 install --upgrade virtualenv
+  script:
+    - virtualenv env
+    - source env/bin/activate
+    - pip install -r requirements.txt
+    - python manage.py test taskManager
+
+integration:
+  stage: integration
+  script:
+    - echo "This is an integration step"
+    - exit 1
+  allow_failure: true           # even if the job fails, continue to the next stages
+
+prod:
+  stage: prod
+  script:
+    - echo "This is a deploy step."
+  when: manual                  # Continuous Delivery (human clicks "play")
+
+sast:
+  stage: build                     # moved from test to build: SAST needs no running app
+  script:
+    - docker pull hysnsec/bandit   # download the bandit docker image
+    # --user: report owned by the runner user, not root (try removing it and see what breaks)
+    - docker run --user $(id -u):$(id -g) -v $(pwd):/src --rm hysnsec/bandit -r /src -f json -o /src/bandit-output.json
+  artifacts:
+    paths: [bandit-output.json]
+    when: always
+  allow_failure: true              # allow the build to fail but don't mark it as such

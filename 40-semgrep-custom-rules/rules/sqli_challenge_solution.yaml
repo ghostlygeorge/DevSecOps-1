@@ -1,0 +1,27 @@
+# Challenge solution (course gives none): detect raw-SQL injection like
+#   curs.execute("insert ... values ('%s','%s',%s)" % (name, upload_path, project_id))
+rules:
+  - id: python-raw-sql-string-building
+    message: >-
+      SQL built with string formatting/concatenation is passed to execute().
+      Use parameter binding: cursor.execute("... VALUES (%s, %s, %s)", [a, b, c]).
+    severity: ERROR
+    languages: [python]
+    metadata:
+      cwe: "CWE-89: SQL Injection"
+      owasp: "A03:2021 - Injection"
+    patterns:
+      - pattern-either:
+          - pattern: $CUR.execute("..." % $ARGS, ...)
+          - pattern: $CUR.execute("..." + $X, ...)
+          - pattern: $CUR.execute($X + "...", ...)
+          - pattern: $CUR.execute("...".format(...), ...)
+          - pattern: $CUR.execute(f"...", ...)
+          - patterns:                          # query built in a variable first
+              - pattern-inside: |
+                  $Q = "..." % $ARGS
+                  ...
+              - pattern: $CUR.execute($Q, ...)
+      # an f-string with only %s placeholders and a param list is safe -> exclude
+      - pattern-not: $CUR.execute("...", [...])
+      - pattern-not: $CUR.execute("...", (...))

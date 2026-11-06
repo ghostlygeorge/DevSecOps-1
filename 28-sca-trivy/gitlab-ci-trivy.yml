@@ -1,0 +1,29 @@
+# Bonus snippet: APPEND these jobs to common/gitlab-ci-base.yml (it declares the test + release stages).
+# Bonus (not in course text): Trivy as filesystem SCA + image scan in GitLab.
+trivy-fs:
+  stage: test
+  image:
+    name: aquasec/trivy:0.48.1
+    entrypoint: [""]
+  script:
+    - trivy fs --scanners vuln,secret --format json --output trivy-fs.json .
+    - trivy fs --scanners vuln --severity HIGH,CRITICAL --exit-code 1 .    # the gate
+  artifacts:
+    paths: [trivy-fs.json]
+    when: always
+  allow_failure: true
+
+trivy-image:
+  stage: release
+  image:
+    name: aquasec/trivy:0.48.1
+    entrypoint: [""]
+  variables:
+    TRIVY_USERNAME: $CI_REGISTRY_USER
+    TRIVY_PASSWORD: $CI_REGISTRY_PASSWORD
+  script:
+    - trivy image --format json --output trivy-image.json $CI_REGISTRY_IMAGE
+  artifacts:
+    paths: [trivy-image.json]
+    when: always
+  allow_failure: true

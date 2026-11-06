@@ -1,0 +1,11 @@
+rules:
+  - id: find-get-project-db-value
+    patterns:
+      - pattern: Project.objects.get(...)
+      - pattern-inside: |
+          def $FUNC(request):
+            ...
+    message: Get project db value
+    languages:
+      - python
+    severity: WARNING

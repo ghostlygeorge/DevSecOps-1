@@ -1,0 +1,9 @@
+# Bonus: Brakeman in GitLab for the rails project (same pattern as every SAST job).
+sast-brakeman:
+  stage: build
+  script:
+    - docker run --rm -v $(pwd):/src hysnsec/brakeman -f json -o /src/brakeman-output.json -i /src/brakeman.ignore /src
+  artifacts:
+    paths: [brakeman-output.json]
+    when: always
+  allow_failure: true          # exit 3 when warnings exist

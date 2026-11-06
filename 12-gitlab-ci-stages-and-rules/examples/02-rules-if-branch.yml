@@ -1,0 +1,10 @@
+stages: [build, test, integration, prod]
+
+build:
+  stage: build
+  script:
+    - echo "This is a build step."
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'    # only pipelines on the main branch
+# Operators: == != =~ !~   Combine with && ||
+# A rule with no other attributes defaults to: when: on_success, allow_failure: false

@@ -1,0 +1,20 @@
+stages: [build, test, integration, staging, prod]
+
+job4:
+  stage: staging
+  script:
+    - echo "This is a deploy step to staging environment."
+    - exit 1                                  # non-zero exit fails the job
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      allow_failure: true                     # ...but pipeline continues
+
+job5:
+  stage: prod
+  script:
+    - echo "This is a deploy step to production environment."
+  rules:
+    - if: '$CI_COMMIT_TAG !~ "/^$/"'          # tag is not empty -> only in TAG pipelines
+      when: manual
+# job5 never shows on a branch push. Create a tag (Repository -> Tags ->
+# New tag, e.g. "for-practice") -> tag pipeline appears -> press play on job5.

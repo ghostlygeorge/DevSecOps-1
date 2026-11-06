@@ -1,0 +1,7 @@
+# .hadolint.yaml — repo-level config (auto-loaded from CWD)
+failure-threshold: warning        # info-level findings won't fail CI
+ignored:
+  - DL3018                        # if the team accepts unpinned apk packages (document why!)
+trustedRegistries:
+  - docker.io
+  - gitlab-registry-LABID.lab.practical-devsecops.training

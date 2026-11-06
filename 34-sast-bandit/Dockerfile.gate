@@ -1,0 +1,7 @@
+FROM python:3.11-alpine
+RUN pip install --no-cache-dir bandit==1.7.4
+COPY bandit_gate.py /usr/local/bin/bandit_gate.py
+WORKDIR /src
+# scan /src, then gate: docker run --rm -v $(pwd):/src bandit-gate
+ENTRYPOINT ["sh", "-c", "bandit -r /src -f json -o /tmp/b.json --exit-zero -q; python3 /usr/local/bin/bandit_gate.py /tmp/b.json \"$@\"", "--"]
+CMD ["--high", "3", "--medium", "1", "--low", "1"]

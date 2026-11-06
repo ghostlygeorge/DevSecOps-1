@@ -1,0 +1,78 @@
+# The "DevOps team's workflow" used by the GitHub Actions exercises.
+# Save as .github/workflows/main.yaml.
+#
+# Modernised vs. the course text: GitHub retired the ubuntu-20.04 runner
+# (April 2025) and actions/upload-artifact v1-v3 (Jan 2025), and Python 3.6
+# is not installable by setup-python on ubuntu-22.04+. The course YAML
+# (ubuntu-20.04 / @v2 / 3.6) will no longer run on github.com as written.
+name: Django
+on:
+  push:
+    branches:              # similar to "only" in GitLab
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04  # similar to "image" in GitLab
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.8'
+      - run: |
+          pip3 install --upgrade virtualenv
+          virtualenv env
+          source env/bin/activate
+          pip install -r requirements.txt
+          python manage.py check
+
+  test:
+    runs-on: ubuntu-22.04
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.8'
+      - run: |
+          pip3 install --upgrade virtualenv
+          virtualenv env
+          source env/bin/activate
+          pip install -r requirements.txt
+          python manage.py test taskManager
+
+  integration:
+    runs-on: ubuntu-22.04
+    needs: test
+    steps:
+      - run: echo "This is an integration step"
+      - run: exit 1
+        continue-on-error: true   # GitHub's equivalent of allow_failure: true
+
+  prod:
+    runs-on: ubuntu-22.04
+    needs: integration
+    steps:
+      - run: echo "This is a deploy step."
+
+  nuclei-scan:
+    runs-on: ubuntu-22.04
+    needs: test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Nuclei - Vulnerability Scan
+        uses: projectdiscovery/nuclei-action@main
+        with:
+          target: ${{ secrets.PROD_URL }}
+        continue-on-error: true
+      - name: GitHub Workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuclei.log
+          path: nuclei.log
+        if: always()

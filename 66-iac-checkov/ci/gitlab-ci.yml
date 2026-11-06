@@ -1,0 +1,41 @@
+image: docker:20.10
+
+services:
+  - docker:dind
+
+stages:
+  - validate          # course erratum: the first version used `stage: validate` without declaring it -> YAML error
+  - build
+  - test
+  - release
+  - preprod
+  - integration
+  - prod
+
+checkov:
+  stage: validate
+  script:
+    - docker pull bridgecrew/checkov
+    - docker run --rm -w /src -v $(pwd):/src bridgecrew/checkov -d aws -o json | tee checkov-output.json
+  artifacts:
+    paths: [checkov-output.json]
+    when: always
+  allow_failure: true
+
+test:
+  stage: test
+  script:
+    - echo "This is a test step"
+
+integration:
+  stage: integration
+  script:
+    - echo "This is an integration step"
+    - exit 1
+  allow_failure: true
+
+prod:
+  stage: prod
+  script:
+    - echo "This is a deploy step."
+  when: manual

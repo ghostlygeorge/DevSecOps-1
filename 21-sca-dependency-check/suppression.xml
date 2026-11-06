@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
+  <suppress>
+    <notes><![CDATA[
+      Ignore underscore-min.js issue as FP
+    ]]></notes>
+    <vulnerabilityName>CVE-2021-23358</vulnerabilityName>
+  </suppress>
+  <!-- Other selectors you can use instead of / together with vulnerabilityName:
+       <filePath regex="true">.*underscore-min\.js</filePath>
+       <packageUrl regex="true">^pkg:javascript/underscore\.js@.*$</packageUrl>
+       <cve>CVE-2021-23358</cve>
+       <cvssBelow>7</cvssBelow>
+       Add until="2026-12-31Z" on <suppress> so suppressions expire. -->
+</suppressions>

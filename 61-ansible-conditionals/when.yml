@@ -1,0 +1,10 @@
+---
+- name: Simple playbook
+  hosts: all
+  remote_user: root
+  gather_facts: yes        # REQUIRED here: ansible_distribution is a gathered fact
+  tasks:
+    - debug:
+        msg: "This system uses Ubuntu-based distro"
+      when: ansible_distribution == "Ubuntu"
+    # change "Ubuntu" -> "CentOS" and the task shows "skipping"

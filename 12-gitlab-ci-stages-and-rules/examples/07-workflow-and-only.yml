@@ -1,0 +1,23 @@
+# Extra patterns worth knowing (not in the course text, but on real pipelines).
+
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS'
+      when: never                              # avoid duplicate branch+MR pipelines
+    - if: '$CI_COMMIT_BRANCH'
+
+stages: [test, prod]
+
+sast:
+  stage: test
+  script: [echo scan]
+  allow_failure:
+    exit_codes: [1]                            # tolerate "findings", fail on crashes (2+)
+
+deploy:
+  stage: prod
+  script: [echo deploy]
+  only:                                        # legacy syntax, replaced by rules:
+    - main                                     # cannot be combined with rules: in one job
+  environment: production

@@ -1,0 +1,16 @@
+# What you'd actually ship. Compare with steps/ — every line fixes something
+# hadolint or a reviewer would flag.
+FROM ubuntu:20.04
+
+# DEBIAN_FRONTEND stops tzdata's interactive region prompt during the build
+ENV DEBIAN_FRONTEND=noninteractive
+
+# one layer, no recommends, clean the apt cache (smaller image, fewer CVEs)
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends nginx \
+ && rm -rf /var/lib/apt/lists/*
+
+EXPOSE 80
+
+# nginx in the FOREGROUND as PID 1: receives signals, no sleep hack
+CMD ["nginx", "-g", "daemon off;"]

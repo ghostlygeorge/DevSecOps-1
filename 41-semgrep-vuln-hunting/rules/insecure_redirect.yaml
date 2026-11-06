@@ -1,0 +1,8 @@
+rules:
+  - id: CWE-601
+    pattern: |
+      return redirect(request.$M.get(...))
+    message: Insecure Redirect
+    severity: WARNING
+    languages:
+      - python

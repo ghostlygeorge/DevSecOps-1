@@ -1,0 +1,15 @@
+rules:
+  - id: debug-enabled
+    patterns:
+      - pattern: DEBUG=True
+    message: |
+      Detected Django app with DEBUG=True. Do not deploy to production with this flag enabled
+      as it will leak sensitive information.
+    metadata:
+      cwe: 'CWE-489: Active Debug Code'
+      owasp: 'A6: Security Misconfiguration'
+      references:
+        - https://blog.scrt.ch/2018/08/24/remote-code-execution-on-a-facebook-server/
+    severity: WARNING
+    languages:
+      - python

@@ -1,0 +1,47 @@
+# Minimal echo-only pipeline used for non-Django repos (webgoat, golang,
+# rails, terraform, nodejs). Same stage layout as gitlab-ci-base.yml.
+image: docker:20.10
+
+services:
+  - docker:dind
+
+stages:
+  - build
+  - test
+  - release
+  - preprod
+  - integration
+  - prod
+
+build:
+  stage: build
+  script:
+    - echo "This is a build step"
+
+test:
+  stage: test
+  script:
+    - echo "This is a test step"
+
+integration:
+  stage: integration
+  script:
+    - echo "This is an integration step"
+    - exit 1
+  allow_failure: true
+
+prod:
+  stage: prod
+  script:
+    - echo "This is a deploy step."
+  when: manual
+
+sast:
+  stage: build
+  script:
+    # -w /src so ./... resolves inside the mounted module
+    - docker run --rm -v $(pwd):/src -w /src securego/gosec -fmt json -out gosec-output.json ./...
+  artifacts:
+    paths: [gosec-output.json]
+    when: always
+  allow_failure: true          # gosec exits 1 when issues are found (-no-fail to disable)

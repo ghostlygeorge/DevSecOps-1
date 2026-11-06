@@ -1,0 +1,75 @@
+pipeline {
+    agent any
+
+    options {
+        gitLabConnection('gitlab')     // report status back to GitLab commits/MRs
+    }
+
+    stages {
+        stage("build") {
+            agent {
+                docker {                // run THIS stage inside a python:3.6 container
+                    image 'python:3.6'
+                    args '-u root'      // root inside the container, so pip can write
+                }
+            }
+            steps {
+                sh """
+                pip3 install --user virtualenv
+                python3 -m virtualenv env
+                . env/bin/activate
+                pip3 install -r requirements.txt
+                python3 manage.py check
+                """
+            }
+        }
+        stage("test") {
+            agent {
+                docker {
+                    image 'python:3.6'
+                    args '-u root'
+                }
+            }
+            steps {
+                sh """
+                pip3 install --user virtualenv
+                python3 -m virtualenv env
+                . env/bin/activate
+                pip3 install -r requirements.txt
+                python3 manage.py test taskManager
+                """
+            }
+        }
+        stage("integration") {
+            steps {
+                catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+                    echo "This is an integration step"
+                    sh "exit 1"
+                }
+            }
+        }
+        stage("prod") {
+            steps {
+                input "Deploy to production?"
+                echo "This is a deploy step"
+            }
+        }
+    }
+    post {
+        failure {
+            updateGitlabCommitStatus(name: "\${env.STAGE_NAME}", state: 'failed')
+        }
+        unstable {
+            updateGitlabCommitStatus(name: "\${env.STAGE_NAME}", state: 'failed')
+        }
+        success {
+            updateGitlabCommitStatus(name: "\${env.STAGE_NAME}", state: 'success')
+        }
+        aborted {
+            updateGitlabCommitStatus(name: "\${env.STAGE_NAME}", state: 'canceled')
+        }
+        always {
+            deleteDir() // clean up workspace
+        }
+    }
+}

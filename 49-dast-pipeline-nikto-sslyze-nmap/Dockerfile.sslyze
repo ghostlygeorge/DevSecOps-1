@@ -1,0 +1,13 @@
+# Extra-mile challenge (no official solution): a minimal SSLyze image on alpine.
+FROM python:3.10-alpine
+# nassl ships manylinux wheels only -> on alpine it needs a build toolchain
+RUN apk add --no-cache --virtual .build gcc musl-dev libffi-dev openssl-dev make perl linux-headers \
+ && pip install --no-cache-dir sslyze==5.0.3 \
+ && apk del .build
+RUN adduser -D scanner
+USER scanner
+WORKDIR /tmp
+ENTRYPOINT ["sslyze"]
+# usage: docker build -t my-sslyze -f Dockerfile.sslyze . &&
+#        docker run --rm -v $(pwd):/tmp my-sslyze prod-LABID.lab.practical-devsecops.training:443 --json_out /tmp/out.json
+# If nassl won't compile on musl, fall back to python:3.10-slim (glibc wheels) — still small.

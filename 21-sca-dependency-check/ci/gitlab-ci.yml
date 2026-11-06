@@ -1,0 +1,50 @@
+# Minimal echo-only pipeline used for non-Django repos (webgoat, golang,
+# rails, terraform, nodejs). Same stage layout as gitlab-ci-base.yml.
+image: docker:20.10
+
+services:
+  - docker:dind
+
+stages:
+  - build
+  - test
+  - release
+  - preprod
+  - integration
+  - prod
+
+build:
+  stage: build
+  script:
+    - echo "This is a build step"
+
+test:
+  stage: test
+  script:
+    - echo "This is a test step"
+
+integration:
+  stage: integration
+  script:
+    - echo "This is an integration step"
+    - exit 1
+  allow_failure: true
+
+prod:
+  stage: prod
+  script:
+    - echo "This is a deploy step."
+  when: manual
+
+odc-backend:
+  stage: test
+  image: gitlab/dind:latest        # needs docker AND /bin/sh to run the wrapper script
+  script:
+    - chmod +x ./run-depcheck.sh
+    - ./run-depcheck.sh
+  artifacts:
+    paths:
+      - reports/dependency-check-report.json
+    when: always
+    expire_in: one week
+  allow_failure: true              # --failOnCVSS 4 makes it exit non-zero

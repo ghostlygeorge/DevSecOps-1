@@ -1,0 +1,178 @@
+# CAPSTONE: an exam-style DevSecOps pipeline for django.nv on GitLab CI.
+#
+# Variables (Settings -> CI/CD -> Variables):
+#   PROD_HOSTNAME=prod-LABID  PROD_USERNAME=root  PROD_SSH_PRIVKEY=<prod key, protected>
+#   DOJO_HOST=dojo-LABID.lab.practical-devsecops.training  DOJO_API_TOKEN=<masked>
+#   PROD_URL=https://prod-LABID.lab.practical-devsecops.training
+# Repo must contain: upload-results.py (common/), ansible-hardening.yml (lab 62)
+#
+# Maturity level 1-2 policy: every security job reports (artifact + DefectDojo) but
+# none blocks delivery (allow_failure: true). Flip selected jobs to blocking as FP
+# handling matures (bandit baseline, zap config file, retire --severity...).
+
+image: docker:20.10
+
+services:
+  - docker:dind
+
+stages:
+  - build
+  - test
+  - release
+  - preprod
+  - integration
+  - prod
+
+variables:
+  DOJO_ENGAGEMENT: "1"
+  DOJO_PRODUCT: "1"
+
+# reusable upload step (YAML anchor) — runs in after_script so it fires even when the scan fails
+.dojo_upload: &dojo_upload
+  - apk add --no-cache py3-pip py3-requests >/dev/null 2>&1 || true
+  - test -f "$REPORT" && python3 upload-results.py --host $DOJO_HOST --api_key $DOJO_API_TOKEN --engagement_id $DOJO_ENGAGEMENT --product_id $DOJO_PRODUCT --lead_id 1 --environment "Production" --result_file "$REPORT" --scanner "$SCANNER" || echo "upload skipped/failed"
+
+# ---------------------------------------------------------------- build
+build:
+  stage: build
+  image: python:3.6
+  before_script:
+    - pip3 install --upgrade virtualenv
+  script:
+    - virtualenv env
+    - source env/bin/activate
+    - pip install -r requirements.txt
+    - python manage.py check
+
+git-secrets:
+  stage: build
+  variables: { REPORT: trufflehog-output.json, SCANNER: "Trufflehog Scan" }
+  script:
+    - docker run -v $(pwd):/src --rm hysnsec/trufflehog filesystem --directory=/src --fail --json | tee trufflehog-output.json
+  after_script: *dojo_upload
+  artifacts: { paths: [trufflehog-output.json], when: always, expire_in: one week }
+  allow_failure: true
+
+sast:
+  stage: build
+  variables: { REPORT: bandit-output.json, SCANNER: "Bandit Scan" }
+  script:
+    - docker run --user $(id -u):$(id -g) -v $(pwd):/src --rm hysnsec/bandit -r /src -f json -o /src/bandit-output.json
+  after_script: *dojo_upload
+  artifacts: { paths: [bandit-output.json], when: always, expire_in: one week }
+  allow_failure: true
+
+# ---------------------------------------------------------------- test
+test:
+  stage: test
+  image: python:3.6
+  before_script:
+    - pip3 install --upgrade virtualenv
+  script:
+    - virtualenv env
+    - source env/bin/activate
+    - pip install -r requirements.txt
+    - python manage.py test taskManager
+
+oast:
+  stage: test
+  script:
+    - docker run -v $(pwd):/src --rm hysnsec/safety check -r requirements.txt --json | tee oast-results.json
+  artifacts: { paths: [oast-results.json], when: always, expire_in: one week }
+  allow_failure: true
+
+oast-frontend:
+  stage: test
+  image: node:alpine3.10
+  variables: { REPORT: retirejs-report.json, SCANNER: "Retire.js Scan" }
+  script:
+    - npm install
+    - npm install -g retire@5.0.0
+    - retire --outputformat json --outputpath retirejs-report.json --severity high
+  after_script:
+    - apk add --no-cache python3 py3-pip >/dev/null 2>&1 && pip3 install requests >/dev/null 2>&1 || true
+    - python3 upload-results.py --host $DOJO_HOST --api_key $DOJO_API_TOKEN --engagement_id $DOJO_ENGAGEMENT --product_id $DOJO_PRODUCT --lead_id 1 --environment "Production" --result_file retirejs-report.json --scanner "Retire.js Scan" || true
+  artifacts: { paths: [retirejs-report.json], when: always, expire_in: one week }
+  allow_failure: true
+
+# ---------------------------------------------------------------- release
+release:
+  stage: release
+  before_script:
+    - echo $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
+  script:
+    - docker build -t $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA .
+    - docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
+
+# ---------------------------------------------------------------- preprod: deploy so DAST has a target
+deploy:
+  stage: preprod
+  image: kroniak/ssh-client:3.6
+  environment: production
+  only: [main]
+  before_script:
+    - mkdir -p ~/.ssh
+    - echo "$PROD_SSH_PRIVKEY" | tr -d '\r' > ~/.ssh/id_rsa
+    - chmod 600 ~/.ssh/id_rsa
+    - eval "$(ssh-agent -s)"
+    - ssh-add ~/.ssh/id_rsa
+    - ssh-keyscan -t rsa $PROD_HOSTNAME >> ~/.ssh/known_hosts
+  script:
+    - |
+      ssh $PROD_USERNAME@$PROD_HOSTNAME << EOF
+        docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+        docker rm -f django.nv
+        docker run -d --name django.nv -p 8000:8000 $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
+      EOF
+
+# ---------------------------------------------------------------- integration: DAST
+zap-baseline:
+  stage: integration
+  variables: { REPORT: zap-output.xml, SCANNER: "ZAP Scan" }
+  script:
+    - docker run --user $(id -u):$(id -g) -w /zap -v $(pwd):/zap/wrk:rw --rm softwaresecurityproject/zap-stable:2.13.0 zap-baseline.py -t $PROD_URL -x zap-output.xml
+  after_script: *dojo_upload
+  artifacts: { paths: [zap-output.xml], when: always, expire_in: one week }
+  allow_failure: true
+
+nuclei:
+  stage: integration
+  script:
+    - docker run --user $(id -u):$(id -g) -w /nuclei -v $(pwd):/nuclei:rw --rm projectdiscovery/nuclei:v2.9.6 -u $PROD_URL -j -o nuclei-output.json
+  artifacts: { paths: [nuclei-output.json], when: always, expire_in: one week }
+  allow_failure: true
+
+# ---------------------------------------------------------------- prod: harden + verify
+ansible-hardening:
+  stage: prod
+  image: willhallonline/ansible:2.9-ubuntu-18.04
+  only: [main]
+  before_script:
+    - mkdir -p ~/.ssh
+    - echo "$PROD_SSH_PRIVKEY" | tr -d '\r' > ~/.ssh/id_rsa
+    - chmod 600 ~/.ssh/id_rsa
+    - eval "$(ssh-agent -s)"
+    - ssh-add ~/.ssh/id_rsa
+    - ssh-keyscan -t rsa $PROD_HOSTNAME >> ~/.ssh/known_hosts
+  script:
+    - echo -e "[prod]\n$PROD_HOSTNAME" >> inventory.ini
+    - ansible-galaxy install dev-sec.os-hardening
+    - ansible-playbook -i inventory.ini ansible-hardening.yml
+  when: manual            # hardening production is a deliberate act
+
+inspec:
+  stage: prod
+  only: [main]
+  needs: [ansible-hardening]     # verify AFTER hardening
+  before_script:
+    - apk add --no-cache openssh-client
+    - mkdir -p ~/.ssh
+    - echo "$PROD_SSH_PRIVKEY" | tr -d '\r' > ~/.ssh/id_rsa
+    - chmod 600 ~/.ssh/id_rsa
+    - eval "$(ssh-agent -s)"
+    - ssh-add ~/.ssh/id_rsa
+    - ssh-keyscan -t rsa $PROD_HOSTNAME >> ~/.ssh/known_hosts
+  script:
+    - docker run --rm -v ~/.ssh:/root/.ssh -v $(pwd):/share hysnsec/inspec exec https://github.com/dev-sec/linux-baseline.git -t ssh://root@$PROD_HOSTNAME -i ~/.ssh/id_rsa --chef-license accept --reporter json:/share/inspec-output.json
+  artifacts: { paths: [inspec-output.json], when: always, expire_in: one week }
+  allow_failure: true

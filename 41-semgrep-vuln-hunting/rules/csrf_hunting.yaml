@@ -1,0 +1,21 @@
+rules:
+  - id: possible-csrf
+    patterns:
+      - pattern-inside: |
+          @csrf_exempt
+          def $FUNC($X):
+            ...
+    message: |
+      Possible CSRF
+    languages:
+      - python
+    severity: WARNING
+  - id: no-csrf-middleware
+    patterns:
+      - pattern: MIDDLEWARE_CLASSES=(...)
+      - pattern-not: MIDDLEWARE_CLASSES=(...,'django.middleware.csrf.CsrfViewMiddleware',...)
+    message: |
+      No CSRF middleware
+    languages:
+      - python
+    severity: WARNING

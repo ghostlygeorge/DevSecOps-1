@@ -1,0 +1,44 @@
+image: node:alpine3.10
+
+cache:
+  paths:
+    - node_modules/          # reuse node_modules between jobs/pipelines
+
+stages:
+  - build
+  - test
+  - release
+  - preprod
+  - integration
+  - prod
+
+build:
+  stage: build
+  script:
+    - npm install
+
+test:
+  stage: test
+  script:
+    - echo "This is an test step"
+
+auditjs:
+  image: docker:dind          # needs a docker CLI; the default node image has none
+  stage: test
+  script:
+    - docker run --rm -v $(pwd):/src -w /src hysnsec/auditjs ossi -q -j | tee auditjs-output.json
+  artifacts:
+    paths: [auditjs-output.json]
+    when: always
+    expire_in: one week
+  allow_failure: true
+
+integration:
+  stage: integration
+  script:
+    - echo "This is an integration step"
+
+prod:
+  stage: prod
+  script:
+    - echo "This is a deploy step"

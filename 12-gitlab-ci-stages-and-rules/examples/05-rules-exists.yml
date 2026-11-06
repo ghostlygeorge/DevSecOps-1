@@ -1,0 +1,11 @@
+stages: [build, test, integration, prod]
+
+build:
+  stage: build
+  script:
+    - docker build -t $CI_REGISTRY/root/django-nv .
+  rules:
+    - exists:
+        - Dockerfile          # glob patterns allowed, e.g. "**/*.tf", "package-lock.json"
+# Security use: one shared template for all repos — retirejs only if package.json
+# exists, bandit only if *.py exists, etc.

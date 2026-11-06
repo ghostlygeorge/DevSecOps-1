@@ -1,0 +1,5 @@
+# RUNS then EXITS(0): `service nginx start` daemonises and returns,
+# PID 1 (bash -c) finishes, so the container stops.
+FROM ubuntu:20.04
+RUN apt update && apt install nginx -y
+CMD ["/bin/bash", "-c" , "service nginx start"]

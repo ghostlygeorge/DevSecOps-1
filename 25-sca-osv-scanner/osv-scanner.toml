@@ -1,0 +1,11 @@
+# Ignore vulnerabilities by ID after False Positive Analysis.
+# Put this file next to the lockfile being scanned (auto-loaded as osv-scanner.toml),
+# or pass it explicitly with --config=/path/to/file.toml
+[[IgnoredVulns]]
+id = "PYSEC-2024-47"
+reason = "false positive"
+# ignoreUntil = 2026-12-31     # optional expiry (TOML date)
+
+[[IgnoredVulns]]
+id = "PYSEC-2024-28"
+reason = "false positive"

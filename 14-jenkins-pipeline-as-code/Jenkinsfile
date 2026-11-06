@@ -1,0 +1,31 @@
+// Minimal declarative pipeline equivalent to lab 12's 01-stages.yml
+pipeline {
+    agent any
+    stages {
+        stage("build") {                 // similar to a "stage" in .gitlab-ci.yml
+            steps {                      // similar to "script" in .gitlab-ci.yml
+                echo "This is a build step"
+            }
+        }
+        stage("test") {
+            steps {
+                echo "This is a test step"
+            }
+        }
+        stage("integration") {
+            steps {
+                // Allow the stage to fail (Jenkins' allow_failure: true)
+                catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+                    echo "This is an integration step"
+                    sh "exit 1"
+                }
+            }
+        }
+        stage("prod") {
+            steps {
+                input "Deploy to production?"     // Jenkins' when: manual
+                echo "This is a deploy step."
+            }
+        }
+    }
+}

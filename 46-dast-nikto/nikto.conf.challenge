@@ -1,0 +1,5 @@
+# Challenge #3: skip ports 21/22/111 and always write CSV to result.csv.
+# Save as /nikto/program/nikto.conf (this REPLACES the shipped config — back it up first),
+# or keep it separate and pass -config <file>.
+SKIPPORTS=21 22 111
+CLIOPTS=-output result.csv -Format csv

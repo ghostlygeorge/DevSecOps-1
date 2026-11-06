@@ -1,0 +1,12 @@
+# Bonus: lint the Dockerfile only when it changes.
+hadolint:
+  stage: build
+  image: hadolint/hadolint:v2.12.0-alpine
+  script:
+    - hadolint -f json Dockerfile | tee hadolint-output.json
+  rules:
+    - changes: [Dockerfile]
+  artifacts:
+    paths: [hadolint-output.json]
+    when: always
+  allow_failure: true

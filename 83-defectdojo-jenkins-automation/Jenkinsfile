@@ -1,0 +1,104 @@
+// Credentials (Secret text): dojo-host = dojo-LABID.lab.practical-devsecops.training
+//                            dojo-api-token = API v2 key
+// upload-results.py committed at the repo root.
+pipeline {
+    agent any
+    options {
+        gitLabConnection('gitlab')
+    }
+    stages {
+        stage("build") {
+            agent { docker { image 'python:3.6'
+                             args '-u root' } }
+            steps {
+                sh """
+                pip3 install --user virtualenv
+                python3 -m virtualenv env
+                . env/bin/activate
+                pip3 install -r requirements.txt
+                python3 manage.py check
+                """
+            }
+        }
+        stage("test") {
+            agent { docker { image 'python:3.6'
+                             args '-u root' } }
+            steps {
+                sh """
+                pip3 install --user virtualenv
+                python3 -m virtualenv env
+                . env/bin/activate
+                pip3 install -r requirements.txt
+                python3 manage.py test taskManager
+                """
+            }
+        }
+        stage("sast") {
+            steps {
+                withCredentials([string(credentialsId: 'dojo-host', variable: 'DOJO_HOST'),
+                                 string(credentialsId: 'dojo-api-token', variable: 'DOJO_API_TOKEN')]) {
+                    // `|| true`: bandit exits 1 on findings and the next line (upload) must still run.
+                    // Single-quoted sh -> the SHELL expands the secrets (no Groovy interpolation warning).
+                    sh '''
+                    docker run -v $(pwd):/src --rm hysnsec/bandit -r /src -f json -o /src/bandit-output.json || true
+                    python3 upload-results.py --host $DOJO_HOST --api_key $DOJO_API_TOKEN --engagement_id 1 --product_id 1 --lead_id 1 --environment "Production" --result_file bandit-output.json --scanner 'Bandit Scan'
+                    '''
+                }
+            }
+            post {
+                always {
+                    archiveArtifacts artifacts: 'bandit-output.json', fingerprint: true
+                }
+            }
+        }
+        stage("zap-baseline") {
+            steps {
+                catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+                    sh "docker run -u root -v \$(pwd):/zap/wrk:rw --rm softwaresecurityproject/zap-stable:2.13.0 zap-baseline.py -t https://prod-LABID.lab.practical-devsecops.training -x zap-output.xml"
+                }
+            }
+            post {
+                always {
+                    archiveArtifacts artifacts: 'zap-output.xml', fingerprint: true
+                }
+            }
+        }
+        stage("defectdojo") {
+            // Challenge answer. Same agent + workspace, so zap-output.xml is already here.
+            // (On different agents you'd use stash/unstash or the Copy Artifact plugin.)
+            steps {
+                withCredentials([string(credentialsId: 'dojo-host', variable: 'DOJO_HOST'),
+                                 string(credentialsId: 'dojo-api-token', variable: 'DOJO_API_TOKEN')]) {
+                    sh '''
+                    python3 upload-results.py --host $DOJO_HOST --api_key $DOJO_API_TOKEN --engagement_id 1 --product_id 1 --lead_id 1 --environment "Production" --result_file zap-output.xml --scanner 'ZAP Scan'
+                    '''
+                }
+            }
+        }
+        stage("integration") {
+            steps {
+                catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+                    echo "This is an integration step."
+                    sh "exit 1"
+                }
+            }
+        }
+        stage("prod") {
+            steps {
+                input "Deploy to production?"
+                echo "This is a deploy step."
+            }
+        }
+    }
+    post {
+        failure  { updateGitlabCommitStatus(name: "\${env.STAGE_NAME}", state: 'failed') }
+        unstable { updateGitlabCommitStatus(name: "\${env.STAGE_NAME}", state: 'failed') }
+        success  { updateGitlabCommitStatus(name: "\${env.STAGE_NAME}", state: 'success') }
+        aborted  { updateGitlabCommitStatus(name: "\${env.STAGE_NAME}", state: 'canceled') }
+        always {
+            deleteDir()
+            dir("${WORKSPACE}@tmp") { deleteDir() }
+            dir("${WORKSPACE}@script") { deleteDir() }
+        }
+    }
+}

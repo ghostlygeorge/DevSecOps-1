@@ -1,0 +1,40 @@
+name: Terraform
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-22.04
+    steps:
+      - run: echo "This is a test step"
+  integration:
+    runs-on: ubuntu-22.04
+    needs: test
+    steps:
+      - run: echo "This is an integration step"
+      - run: exit 1
+        continue-on-error: true
+  prod:
+    runs-on: ubuntu-22.04
+    needs: integration
+    steps:
+      - run: echo "This is a deploy step"
+  tflint:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - uses: terraform-linters/setup-tflint@v4
+        name: Setup TFLint
+        with:
+          tflint_version: latest
+      - name: Run TFLint
+        run: tflint --chdir=aws -f json > tflint-output.json
+        continue-on-error: true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TFLint
+          path: tflint-output.json
+        if: always()

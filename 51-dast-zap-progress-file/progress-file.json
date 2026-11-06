@@ -1,0 +1,29 @@
+{
+  "site": "https://prod-LABID.lab.practical-devsecops.training",
+  "issues": [
+    {
+      "id": "10099",
+      "name": "Source Code Disclosure - SQL",
+      "state": "inprogress",
+      "link": "[FP] INTENDED VULNERABILITIES, A FALSE POSITIVE [FP]"
+    },
+    {
+      "id": "10063",
+      "name": "[EXAMPLE] Insert the issue name here! [EXAMPLE]",
+      "state": "inprogress",
+      "link": "[EXAMPLE] Insert tracked / on progress issue here! [EXAMPLE]"
+    },
+    {
+      "id": "10036",
+      "name": "Server Leaks Version Information via \"Server\" HTTP Response Header Field",
+      "state": "inprogress",
+      "link": "https://dojo-LABID.lab.practical-devsecops.training/finding/4"
+    },
+    {
+      "id": "10035",
+      "name": "Strict-Transport-Security Header Not Set",
+      "state": "inprogress",
+      "link": "https://dojo-LABID.lab.practical-devsecops.training/finding/3"
+    }
+  ]
+}

@@ -1,0 +1,80 @@
+// Credentials: ssh-prod (SSH Username with private key, root + prod's id_rsa)
+//              prod-server (Secret text = prod-LABID) — documented by the course;
+//              below the host is read from it instead of the course's literal "prod-server" hostname.
+pipeline {
+    agent any
+    options {
+        gitLabConnection('gitlab')
+    }
+    stages {
+        stage("build") {
+            agent { docker { image 'python:3.6'
+                             args '-u root' } }
+            steps {
+                sh """
+                pip3 install --user virtualenv
+                python3 -m virtualenv env
+                . env/bin/activate
+                pip3 install -r requirements.txt
+                python3 manage.py check
+                """
+            }
+        }
+        stage("test") {
+            agent { docker { image 'python:3.6'
+                             args '-u root' } }
+            steps {
+                sh """
+                pip3 install --user virtualenv
+                python3 -m virtualenv env
+                . env/bin/activate
+                pip3 install -r requirements.txt
+                python3 manage.py test taskManager
+                """
+            }
+        }
+        stage("integration") {
+            steps {
+                catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+                    echo "This is an integration step."
+                    sh "exit 1"
+                }
+            }
+        }
+        stage("prod") {
+            steps {
+                input "Deploy to production?"
+                echo "This is a deploy step."
+            }
+        }
+        stage("Inspec") {
+            agent {
+                docker {
+                    image 'hysnsec/inspec'
+                    args '-u root'
+                }
+            }
+            steps {
+                sshagent(['ssh-prod']) {
+                    withCredentials([string(credentialsId: 'prod-server', variable: 'PROD')]) {
+                        catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {   // exit 100 on failures
+                            sh 'inspec exec https://github.com/dev-sec/linux-baseline.git -t ssh://root@$PROD --chef-license accept --reporter json:inspec-output.json'
+                        }
+                    }
+                }
+            }
+            post {
+                always {
+                    archiveArtifacts artifacts: 'inspec-output.json', fingerprint: true
+                }
+            }
+        }
+    }
+    post {
+        failure  { updateGitlabCommitStatus(name: STAGE_NAME, state: 'failed') }
+        unstable { updateGitlabCommitStatus(name: STAGE_NAME, state: 'failed') }
+        success  { updateGitlabCommitStatus(name: STAGE_NAME, state: 'success') }
+        aborted  { updateGitlabCommitStatus(name: STAGE_NAME, state: 'skipped') }
+        always   { deleteDir() }
+    }
+}

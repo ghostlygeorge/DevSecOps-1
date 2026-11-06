@@ -1,0 +1,26 @@
+# Course demo workflow (runners modernised to ubuntu-22.04).
+# Observe: integration fails but prod STILL runs — no `needs:` = all jobs parallel.
+name: Django
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - run: echo "This is a build step"
+  test:
+    runs-on: ubuntu-22.04
+    steps:
+      - run: echo "This is a test step"
+  integration:
+    runs-on: ubuntu-22.04
+    steps:
+      - run: echo "This is an integration step"
+      - run: exit 1
+  prod:
+    runs-on: ubuntu-22.04
+    steps:
+      - run: echo "This is a deploy step"

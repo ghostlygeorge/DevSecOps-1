@@ -1,0 +1,29 @@
+# Challenges 1-3 combined: detect nginx, print its version if present, install if missing.
+- name: Playbook to install nginx
+  hosts: sandbox
+  remote_user: root
+  become: yes
+  tasks:
+    - name: check if nginx installed
+      stat:
+        path: /usr/sbin/nginx            # presence of the binary at a known location
+      register: stat_nginx
+
+    - name: get nginx version
+      command: nginx -v
+      register: nginx_version
+      when: stat_nginx.stat.exists
+
+    - name: Print version
+      debug:
+        msg: "{{ nginx_version.stderr }}"    # nginx -v prints to STDERR, not stdout
+      when:                                  # a list = all conditions ANDed
+        - nginx_version is defined
+        - stat_nginx.stat.exists
+
+    - name: install nginx if not exist
+      apt:
+        name: nginx
+        state: present
+        update_cache: true
+      when: not stat_nginx.stat.exists

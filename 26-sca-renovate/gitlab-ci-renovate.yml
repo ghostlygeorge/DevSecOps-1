@@ -1,0 +1,13 @@
+# Run Renovate on a schedule from CI (CI/CD -> Schedules, e.g. nightly).
+# Variables: RENOVATE_TOKEN (PAT: api, read_repository, write_repository), masked + protected.
+renovate:
+  image: renovate/renovate:37
+  variables:
+    RENOVATE_PLATFORM: gitlab
+    RENOVATE_ENDPOINT: $CI_API_V4_URL
+    RENOVATE_REPOSITORIES: $CI_PROJECT_PATH
+    LOG_LEVEL: info
+  script:
+    - renovate
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'

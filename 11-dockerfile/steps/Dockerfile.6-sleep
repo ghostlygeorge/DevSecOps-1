@@ -1,0 +1,4 @@
+# WORKS (crudely): sleep infinity keeps PID 1 alive
+FROM ubuntu:20.04
+RUN apt update && apt install nginx -y
+CMD ["/bin/bash", "-c" , "service nginx start; sleep infinity"]

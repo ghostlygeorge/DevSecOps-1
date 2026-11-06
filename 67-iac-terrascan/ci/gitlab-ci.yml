@@ -1,0 +1,43 @@
+image: docker:20.10
+
+services:
+  - docker:dind
+
+stages:
+  - validate
+  - build
+  - test
+  - release
+  - preprod
+  - integration
+  - prod
+
+terrascan:
+  stage: validate
+  image:
+    name: accurics/terrascan:latest        # now tenable/terrascan
+    entrypoint: ["/bin/sh", "-c"]          # image entrypoint is terrascan itself; override so GitLab can run a shell
+  script:
+    - /go/bin/terrascan scan . -o json > terrascan-output.json
+  artifacts:
+    paths: [terrascan-output.json]
+    when: always
+  allow_failure: true                      # exit 3 when violations are found
+
+test:
+  stage: test
+  script:
+    - echo "This is a test step"
+
+integration:
+  stage: integration
+  script:
+    - echo "This is an integration step"
+    - exit 1
+  allow_failure: true
+
+prod:
+  stage: prod
+  script:
+    - echo "This is a deploy step."
+  when: manual

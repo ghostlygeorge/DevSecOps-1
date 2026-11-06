@@ -1,0 +1,6 @@
+# FAILS at run: only the LAST CMD counts ->
+#   exec: ";sleep infinity": executable file not found in $PATH
+FROM ubuntu:20.04
+RUN apt update && apt install nginx -y
+CMD ["/bin/bash", "-c" , "service nginx start"]
+CMD [";sleep infinity"]

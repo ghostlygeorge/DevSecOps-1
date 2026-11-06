@@ -1,0 +1,6 @@
+# Exits again: CMD no longer keeps anything in the foreground.
+# Run with an override to keep it alive:  docker run -d -it --name nginx-one img bash
+FROM ubuntu:20.04
+RUN apt update && apt install nginx -y
+ENTRYPOINT ["/bin/bash", "-c"]
+CMD ["service nginx start"]

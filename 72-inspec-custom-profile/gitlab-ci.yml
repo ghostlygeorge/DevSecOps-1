@@ -1,0 +1,15 @@
+# Challenge #5: check + run the committed `challenge` profile in CI using the official image.
+image: docker:20.10
+
+services:
+  - docker:dind
+
+stages:
+  - test
+
+compliance:
+  stage: test
+  script:
+    - docker run -i --rm -v $(pwd):/share chef/inspec check challenge --chef-license accept
+    - docker run -i --rm -v $(pwd):/share chef/inspec exec challenge --chef-license accept
+  allow_failure: true

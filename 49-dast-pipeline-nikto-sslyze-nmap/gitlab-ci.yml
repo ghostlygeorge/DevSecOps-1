@@ -1,0 +1,73 @@
+# build (image) -> deploy (ssh) -> test (DAST against the live app)
+# Variables: PROD_USERNAME, PROD_HOSTNAME, PROD_SSH_PRIVKEY (see lab 13)
+image: docker:20.10
+
+services:
+  - docker:dind
+
+stages:
+  - build
+  - deploy
+  - test
+
+build:
+  stage: build
+  before_script:
+    - echo $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
+  script:
+    - docker build -t $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA .   # commit-SHA tag: exact, traceable
+    - docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
+
+prod:
+  stage: deploy
+  image: kroniak/ssh-client:3.6
+  environment: production
+  needs:
+    - build
+  only:
+    - main
+  before_script:
+    - mkdir -p ~/.ssh
+    - echo "$PROD_SSH_PRIVKEY" | tr -d '\r' > ~/.ssh/id_rsa
+    - chmod 600 ~/.ssh/id_rsa
+    - eval "$(ssh-agent -s)"
+    - ssh-add ~/.ssh/id_rsa
+    - ssh-keyscan -t rsa $PROD_HOSTNAME >> ~/.ssh/known_hosts
+  script:
+    - echo
+    - |
+      ssh $PROD_USERNAME@$PROD_HOSTNAME << EOF
+        docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+        docker rm -f django.nv
+        docker run -d --name django.nv -p 8000:8000 $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
+      EOF
+
+nikto:
+  stage: test
+  script:
+    - docker pull hysnsec/nikto
+    - docker run --rm -v $(pwd):/tmp hysnsec/nikto -h http://prod-LABID.lab.practical-devsecops.training -o /tmp/nikto-output.xml
+  artifacts:
+    paths: [nikto-output.xml]
+    when: always
+  allow_failure: true
+
+sslscan:
+  stage: test
+  script:
+    - docker pull hysnsec/sslyze
+    - docker run --rm -v $(pwd):/tmp hysnsec/sslyze prod-LABID.lab.practical-devsecops.training:443 --json_out /tmp/sslyze-output.json
+  artifacts:
+    paths: [sslyze-output.json]
+    when: always
+  allow_failure: true
+
+nmap:
+  stage: test
+  script:
+    - docker pull hysnsec/nmap
+    - docker run --rm -v $(pwd):/tmp hysnsec/nmap prod-LABID -oX /tmp/nmap-output.xml
+  artifacts:
+    paths: [nmap-output.xml]
+    when: always
+  allow_failure: true

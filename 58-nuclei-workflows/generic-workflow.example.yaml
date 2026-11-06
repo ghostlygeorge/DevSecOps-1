@@ -1,0 +1,11 @@
+# Generic workflow: runs EVERY listed template/tag unconditionally.
+id: generic-example
+info:
+  name: Generic workflow example
+  author: pdso
+workflows:
+  - template: http/exposures/configs/git-config.yaml
+  - template: http/exposures/configs/svn-config.yaml
+  - template: http/exposures/files/env-file.yaml
+  - template: http/exposures/backups/                # a directory works too
+  - tags: xss,ssrf,cve,lfi

@@ -1,0 +1,47 @@
+# Minimal echo-only pipeline used for non-Django repos (webgoat, golang,
+# rails, terraform, nodejs). Same stage layout as gitlab-ci-base.yml.
+image: docker:20.10
+
+services:
+  - docker:dind
+
+stages:
+  - build
+  - test
+  - release
+  - preprod
+  - integration
+  - prod
+
+build:
+  stage: build
+  script:
+    - echo "This is a build step"
+
+test:
+  stage: test
+  script:
+    - echo "This is a test step"
+
+integration:
+  stage: integration
+  script:
+    - echo "This is an integration step"
+    - exit 1
+  allow_failure: true
+
+prod:
+  stage: prod
+  script:
+    - echo "This is a deploy step."
+  when: manual
+
+bundler-audit:
+  stage: test
+  script:
+    - docker run --rm -v $(pwd):/src -w /src hysnsec/bundle-audit check --format json --output bundle-audit-output.json
+  artifacts:
+    paths: [bundle-audit-output.json]
+    when: always
+    expire_in: one week
+  allow_failure: true          # exits 1 when vulnerable gems / insecure sources are found

@@ -1,0 +1,3 @@
+# BUILDS, but the container does nothing useful when run (no CMD)
+FROM ubuntu:20.04
+RUN apt update && apt install -y nginx

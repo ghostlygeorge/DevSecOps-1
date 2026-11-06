@@ -1,0 +1,79 @@
+# Full CI + Continuous Deployment pipeline for django.nv.
+# Required CI/CD variables (Settings -> CI/CD -> Variables):
+#   PROD_USERNAME    = root
+#   PROD_HOSTNAME    = prod-LABID
+#   PROD_SSH_PRIVKEY = contents of prod:/root/.ssh/id_rsa (protected; masked won't work for multi-line keys)
+image: docker:20.10
+
+services:
+  - docker:dind
+
+stages:
+  - build
+  - test
+  - release
+  - preprod
+  - integration
+  - prod
+
+build:
+  stage: build
+  image: python:3.6
+  before_script:
+    - pip3 install --upgrade virtualenv
+  script:
+    - virtualenv env
+    - source env/bin/activate
+    - pip install -r requirements.txt
+    - python manage.py check
+
+test:
+  stage: test
+  image: python:3.6
+  before_script:
+    - pip3 install --upgrade virtualenv
+  script:
+    - virtualenv env
+    - source env/bin/activate
+    - pip install -r requirements.txt
+    - python manage.py test taskManager
+
+release:
+  stage: release
+  before_script:
+    # CI_REGISTRY_* are predefined by GitLab — no secrets needed for the project's own registry
+    - echo $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
+  script:
+    - docker build -t $CI_REGISTRY_IMAGE .     # build the app into an image
+    - docker push $CI_REGISTRY_IMAGE           # push to the GitLab container registry
+
+integration:
+  stage: integration
+  script:
+    - echo "This is an integration step"
+    - exit 1
+  allow_failure: true
+
+prod:
+  stage: prod
+  image: kroniak/ssh-client:3.6
+  environment: production
+  only:
+    - main
+  before_script:
+    - mkdir -p ~/.ssh
+    - echo "$PROD_SSH_PRIVKEY" | tr -d '\r' > ~/.ssh/id_rsa
+    - chmod 600 ~/.ssh/id_rsa
+    - eval "$(ssh-agent -s)"
+    - ssh-add ~/.ssh/id_rsa
+    - ssh-keyscan -t rsa $PROD_HOSTNAME >> ~/.ssh/known_hosts
+  script:
+    - echo
+    # Unquoted heredoc: $CI_* expand on the RUNNER, then the resulting
+    # commands are executed on prod over ssh.
+    - |
+      ssh $PROD_USERNAME@$PROD_HOSTNAME << EOF
+        docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+        docker rm -f django.nv
+        docker run -d --name django.nv -p 8000:8000 $CI_REGISTRY_IMAGE
+      EOF

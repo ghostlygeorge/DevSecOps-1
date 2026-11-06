@@ -1,0 +1,7 @@
+# ENTRYPOINT + CMD: CMD becomes the ARGUMENT to the entrypoint.
+#   docker run img                      -> /bin/bash -c "service nginx start; sleep infinity"
+#   docker run img "echo hi"            -> /bin/bash -c "echo hi"   (CMD replaced, entrypoint kept)
+FROM ubuntu:20.04
+RUN apt update && apt install nginx -y
+ENTRYPOINT ["/bin/bash", "-c"]
+CMD ["service nginx start; sleep infinity"]

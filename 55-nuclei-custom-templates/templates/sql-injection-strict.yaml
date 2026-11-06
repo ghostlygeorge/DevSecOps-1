@@ -1,0 +1,28 @@
+# Lower-noise variant: require a DB error (matcher), then extract the message.
+id: sqli-error-based
+
+info:
+  name: Error-based SQL Injection (SQLite)
+  author: lab
+  severity: high
+  tags: sqli
+
+http:
+  - method: GET
+    path:
+      - "{{BaseURL}}'"
+      - "{{BaseURL}}%22"
+      - "{{BaseURL}} OR 1=1"
+    stop-at-first-match: true
+    matchers:
+      - type: regex
+        part: body
+        regex:
+          - "sqlite3\\.OperationalError"
+          - "SQLITE_ERROR"
+          - "unrecognized token"
+    extractors:
+      - type: regex
+        part: body
+        regex:
+          - "sqlite3\\.OperationalError: [^<&]+"

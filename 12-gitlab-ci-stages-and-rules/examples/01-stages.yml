@@ -1,0 +1,29 @@
+# Four stages, run strictly in order. Jobs in the same stage run in parallel.
+stages:
+  - build         # turn the code into a runnable build
+  - test          # unit / integration / e2e tests against the build
+  - integration   # merge with other services, staging, UAT
+  - prod          # release to users (blue/green, canary, rolling...)
+
+build:
+  stage: build
+  script:
+    - echo "This is a build step."
+
+test:
+  stage: test
+  script:
+    - echo "This is a test step."
+
+integration:
+  stage: integration
+  script:
+    - echo "This is an integration step."
+    - exit 1
+  allow_failure: true       # failure shown as a warning (orange !), pipeline continues
+
+prod:
+  stage: prod
+  script:
+    - echo "This is a deploy step."
+  when: manual              # Continuous DELIVERY: a human presses play

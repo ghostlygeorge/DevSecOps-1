@@ -1,0 +1,7 @@
+---
+- name: Example playbook to install Terraform using ansible role.
+  hosts: prod
+  remote_user: root
+  become: yes
+  roles:
+    - secfigo.terraform

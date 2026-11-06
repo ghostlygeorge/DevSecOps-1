@@ -1,0 +1,13 @@
+---
+- name: Simple playbook
+  hosts: all
+  remote_user: root
+  gather_facts: no
+  tasks:
+    - name: Show the content of /etc/os-release
+      command: cat /etc/os-release
+      register: os_release              # save the task result (rc, stdout, stderr, ...) as a variable
+
+    - debug:
+        msg: "This system uses Ubuntu-based distro"
+      when: os_release.stdout.find('Ubuntu') != -1   # str.find returns -1 when not found

@@ -1,0 +1,3 @@
+# FAILS: "E: Unable to locate package nginx" — the package index is empty in a fresh image
+FROM ubuntu:20.04
+RUN apt install nginx

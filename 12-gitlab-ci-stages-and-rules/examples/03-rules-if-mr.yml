@@ -1,0 +1,16 @@
+stages: [build, test, integration, staging, prod]
+
+job1:
+  stage: build
+  script:
+    - echo "This is a build step"
+
+job4:
+  stage: test
+  script:
+    - echo "This is a test step."
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'   # only in MR pipelines
+# Note: if job1 has no rules and job4 only runs for MRs, a push to a branch
+# with an open MR can create TWO pipelines (branch + MR). Use workflow:rules
+# with $CI_OPEN_MERGE_REQUESTS to dedupe in real projects.

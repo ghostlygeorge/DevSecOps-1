@@ -1,0 +1,8 @@
+# Course's diagnostic step: show WHY a git-based scan finds nothing in CI.
+git-secrets:
+  stage: build
+  script:
+    - apk add git
+    - docker pull hysnsec/trufflehog
+    - docker run --user $(id -u):$(id -g) -v $(pwd):/src --rm hysnsec/trufflehog filesystem --directory=/src --fail
+    - git status          # -> "HEAD detached at c4560d9"
